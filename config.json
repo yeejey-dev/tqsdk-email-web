@@ -1,0 +1,41 @@
+{
+  "tq_auth": {
+    "username": "your_tq_username",
+    "password": "your_tq_password"
+  },
+  "contracts": [
+    {
+      "symbol": "SHFE.au2508",
+      "alias": "黄金2508",
+      "price_high": 600.0,
+      "price_low": 500.0,
+      "change_pct_high": 3.0,
+      "change_pct_low": -3.0
+    },
+    {
+      "symbol": "DCE.m2509",
+      "alias": "豆粕2509",
+      "price_high": null,
+      "price_low": null,
+      "change_pct_high": 2.0,
+      "change_pct_low": -2.0
+    }
+  ],
+  "email": {
+    "smtp_server": "smtp.qq.com",
+    "smtp_port": 587,
+    "sender_email": "your_email@qq.com",
+    "sender_password": "your_auth_code",
+    "receiver_emails": ["receiver1@example.com", "receiver2@example.com"],
+    "use_tls": true
+  },
+  "schedule": {
+    "check_interval_seconds": 300,
+    "send_on_interval_only": true,
+    "trading_hours_only": true,
+    "market_open_time": "09:00",
+    "market_close_time": "15:00",
+    "night_session_start": "21:00",
+    "night_session_end": "02:30"
+  }
+}

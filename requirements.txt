@@ -1,0 +1,16 @@
+# 期货实时价格邮件提醒 Web 应用 - 依赖清单
+# 安装命令: pip install -r requirements.txt
+
+# Web 框架（异步、原生 WebSocket 支持）
+fastapi>=0.110.0
+
+# ASGI 服务器（[standard] 含 websockets/httptools，WebSocket 必需）
+uvicorn[standard]>=0.29.0
+
+# 期货行情 SDK（后台线程 wait_update 驱动）
+tqsdk>=3.7.0
+
+# FastAPI 表单解析依赖（部分接口用到）
+python-multipart>=0.0.9
+
+# 说明：sqlite3 / smtplib / threading / asyncio / json / logging 均为 Python 标准库，无需安装

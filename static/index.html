@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>期货实时价格邮件提醒</title>
+
+  <!-- Element Plus 暗色主题 -->
+  <link rel="stylesheet" href="https://unpkg.com/element-plus@2.7.6/dist/index.css">
+  <link rel="stylesheet" href="https://unpkg.com/element-plus@2.7.6/theme-chalk/dark/css-vars.css">
+  <!-- 自定义样式 -->
+  <link rel="stylesheet" href="/static/css/style.css">
+  <!-- JetBrains Mono 等宽字体 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jetbrains-mono@5.0.0/css/jetbrains-mono.min.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap">
+</head>
+<body>
+  <div id="app">
+    <!-- 顶部导航栏 -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="app-logo">📊</div>
+        <div>
+          <div class="app-title">期货实时价格邮件提醒</div>
+          <div class="app-subtitle">TqSdk Web Monitor v1.0</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <!-- 状态指示灯 -->
+        <div class="status-indicator">
+          <span class="status-light" :class="statusClass"></span>
+          <span class="status-text">{{ statusText }}</span>
+        </div>
+        <el-button type="success" :icon="VideoPlay" @click="startService"
+          :disabled="running" :loading="starting">启动服务</el-button>
+        <el-button type="danger" :icon="VideoPause" @click="stopService"
+          :disabled="!running">停止服务</el-button>
+        <el-button :icon="Download" @click="saveConfig">保存配置</el-button>
+        <el-button :icon="Upload" @click="loadConfig">加载配置</el-button>
+      </div>
+    </header>
+
+    <!-- 主内容 -->
+    <main class="app-main">
+      <el-tabs v-model="activeTab">
+        <!-- ========== 配置设置 ========== -->
+        <el-tab-pane label="配置设置" name="config">
+          <!-- 快期账户登录 -->
+          <div class="config-section" :class="{ expanded: sections.auth }">
+            <div class="config-section-header" @click="toggleSection('auth')">
+              <span class="config-section-icon">🔑</span>
+              <span class="config-section-title">快期账户登录</span>
+              <span class="config-section-arrow">▶</span>
+            </div>
+            <div class="config-section-body">
+              <div class="form-row">
+                <label class="form-label">用户名:</label>
+                <el-input v-model="auth.username" placeholder="快期账号" style="width: 280px"></el-input>
+              </div>
+              <div class="form-row">
+                <label class="form-label">密码:</label>
+                <el-input v-model="auth.password" type="password" show-password
+                  placeholder="快期密码" style="width: 280px"></el-input>
+              </div>
+            </div>
+          </div>
+
+          <!-- 期货合约配置 -->
+          <div class="config-section" :class="{ expanded: sections.contracts }">
+            <div class="config-section-header" @click="toggleSection('contracts')">
+              <span class="config-section-icon">📋</span>
+              <span class="config-section-title">期货合约配置</span>
+              <span class="config-section-arrow">▶</span>
+            </div>
+            <div class="config-section-body">
+              <div class="form-row">
+                <label class="form-label form-label-sm">合约代码:</label>
+                <el-input v-model="newContract.symbol" placeholder="SHFE.au2508" style="width: 180px"></el-input>
+                <label class="form-label form-label-sm">别名:</label>
+                <el-input v-model="newContract.alias" placeholder="可选" style="width: 100px"></el-input>
+                <label class="form-label form-label-sm">价格上限:</label>
+                <el-input v-model="newContract.price_high" placeholder="可选" style="width: 90px"></el-input>
+                <label class="form-label form-label-sm">价格下限:</label>
+                <el-input v-model="newContract.price_low" placeholder="可选" style="width: 90px"></el-input>
+              </div>
+              <div class="form-row">
+                <label class="form-label form-label-sm">涨幅上限%:</label>
+                <el-input v-model="newContract.change_pct_high" placeholder="可选" style="width: 90px"></el-input>
+                <label class="form-label form-label-sm">涨幅下限%:</label>
+                <el-input v-model="newContract.change_pct_low" placeholder="可选" style="width: 90px"></el-input>
+                <el-button type="primary" :icon="Plus" @click="addContract">添加</el-button>
+              </div>
+
+              <div class="contract-list" v-if="contracts.length">
+                <div class="contract-item" v-for="c in contracts" :key="c.id">
+                  <div class="contract-item-info">
+                    <span class="contract-symbol">{{ c.symbol }}</span>
+                    <span class="contract-alias" v-if="c.alias">({{ c.alias }})</span>
+                    <div class="contract-alerts">
+                      <span class="alert-tag" v-if="c.price_high != null">上限{{ c.price_high }}</span>
+                      <span class="alert-tag" v-if="c.price_low != null">下限{{ c.price_low }}</span>
+                      <span class="alert-tag" v-if="c.change_pct_high != null">涨幅↑{{ c.change_pct_high }}%</span>
+                      <span class="alert-tag" v-if="c.change_pct_low != null">涨幅↓{{ c.change_pct_low }}%</span>
+                    </div>
+                  </div>
+                  <el-button type="danger" :icon="Delete" size="small" circle @click="deleteContract(c)"></el-button>
+                </div>
+              </div>
+              <div class="empty-state" v-else style="padding: 30px;">
+                <div class="empty-state-title" style="font-size: 14px;">暂无合约，请添加</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 邮件配置 -->
+          <div class="config-section" :class="{ expanded: sections.email }">
+            <div class="config-section-header" @click="toggleSection('email')">
+              <span class="config-section-icon">📧</span>
+              <span class="config-section-title">邮件配置</span>
+              <span class="config-section-arrow">▶</span>
+            </div>
+            <div class="config-section-body">
+              <div class="form-row">
+                <label class="form-label">SMTP服务器:</label>
+                <el-input v-model="email.smtp_server" placeholder="smtp.qq.com" style="width: 260px"></el-input>
+                <label class="form-label form-label-sm">端口:</label>
+                <el-input v-model.number="email.smtp_port" placeholder="587" style="width: 100px"></el-input>
+              </div>
+              <div class="form-row">
+                <label class="form-label">发件人邮箱:</label>
+                <el-input v-model="email.sender_email" placeholder="" style="width: 320px"></el-input>
+              </div>
+              <div class="form-row">
+                <label class="form-label">授权码/密码:</label>
+                <el-input v-model="email.sender_password" type="password" show-password
+                  placeholder="" style="width: 320px"></el-input>
+              </div>
+              <div class="form-row">
+                <label class="form-label">收件人邮箱:</label>
+                <el-input v-model="receiversText" placeholder="多个用逗号分隔" style="width: 320px"></el-input>
+              </div>
+              <div class="form-row">
+                <label class="form-label">使用 TLS:</label>
+                <el-switch v-model="email.use_tls"></el-switch>
+                <span style="font-size: 12px; color: var(--text-muted); margin-left: 8px;">
+                  开启时优先 TLS(587)，关闭时优先 SSL(465)
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 推送时间配置 -->
+          <div class="config-section" :class="{ expanded: sections.schedule }">
+            <div class="config-section-header" @click="toggleSection('schedule')">
+              <span class="config-section-icon">⏰</span>
+              <span class="config-section-title">推送时间配置</span>
+              <span class="config-section-arrow">▶</span>
+            </div>
+            <div class="config-section-body">
+              <div class="form-row">
+                <label class="form-label">推送间隔:</label>
+                <el-select v-model="intervalLabel" placeholder="选择间隔" style="width: 120px" @change="onIntervalChange">
+                  <el-option v-for="opt in intervalOptions" :key="opt.label" :label="opt.label" :value="opt.label"></el-option>
+                </el-select>
+                <label class="form-label form-label-sm">或自定义(秒):</label>
+                <el-input v-model.number="schedule.check_interval_seconds" placeholder="秒" style="width: 100px"></el-input>
+              </div>
+              <div class="form-row">
+                <label class="form-label">仅按间隔发送:</label>
+                <el-switch v-model="schedule.send_on_interval_only"></el-switch>
+                <span style="font-size: 12px; color: var(--text-muted); margin-left: 8px;">
+                  关闭则每次行情变化都发送
+                </span>
+              </div>
+              <div class="form-row">
+                <label class="form-label">仅交易时段:</label>
+                <el-switch v-model="schedule.trading_hours_only"></el-switch>
+              </div>
+              <div class="form-row">
+                <label class="form-label">日盘开始:</label>
+                <el-input v-model="schedule.market_open_time" placeholder="09:00" style="width: 100px"></el-input>
+                <label class="form-label form-label-sm">日盘结束:</label>
+                <el-input v-model="schedule.market_close_time" placeholder="15:00" style="width: 100px"></el-input>
+              </div>
+              <div class="form-row">
+                <label class="form-label">夜盘开始:</label>
+                <el-input v-model="schedule.night_session_start" placeholder="可选" style="width: 100px"></el-input>
+                <label class="form-label form-label-sm">夜盘结束:</label>
+                <el-input v-model="schedule.night_session_end" placeholder="可选" style="width: 100px"></el-input>
+              </div>
+            </div>
+          </div>
+        </el-tab-pane>
+
+        <!-- ========== 行情监控 ========== -->
+        <el-tab-pane label="行情监控" name="monitor">
+          <div class="monitor-grid" v-if="Object.keys(prices).length">
+            <div class="price-card" v-for="(data, symbol) in prices" :key="symbol"
+              :class="priceCardClass(data)">
+              <div class="price-card-alert-badge" v-if="data.alerts && data.alerts.length">
+                预警 {{ data.alerts.length }}
+              </div>
+              <div class="price-card-header">
+                <div>
+                  <div class="price-card-name">{{ data.display_name || symbol }}</div>
+                  <div class="price-card-symbol">{{ symbol }}</div>
+                </div>
+              </div>
+              <div class="price-main">
+                <span class="price-value" :class="{ flash: flashed[symbol] }">
+                  {{ data.last_price != null ? data.last_price : '--' }}
+                </span>
+                <span class="price-change" :class="changeClass(data)">
+                  {{ data.change_pct_str || '--' }}
+                </span>
+              </div>
+              <div class="price-details">
+                <div class="price-detail-item">
+                  <span class="price-detail-label">成交量</span>
+                  <span class="price-detail-value">{{ data.volume != null ? data.volume : '--' }}</span>
+                </div>
+                <div class="price-detail-item">
+                  <span class="price-detail-label">持仓量</span>
+                  <span class="price-detail-value">{{ data.open_interest != null ? data.open_interest : '--' }}</span>
+                </div>
+              </div>
+              <div class="price-card-time">{{ formatTime(data.datetime) }}</div>
+            </div>
+          </div>
+          <div class="empty-state" v-else>
+            <div class="empty-state-icon">📈</div>
+            <div class="empty-state-title">暂无行情数据</div>
+            <div class="empty-state-subtitle">请先在「配置设置」中添加合约并启动服务</div>
+          </div>
+        </el-tab-pane>
+
+        <!-- ========== 运行日志 ========== -->
+        <el-tab-pane label="运行日志" name="logs">
+          <div class="log-container">
+            <div class="log-header">
+              <span class="log-title">
+                终端输出
+                <span class="log-count">{{ logs.length }} 行</span>
+              </span>
+              <el-button :icon="Delete" size="small" @click="clearLogs">清空</el-button>
+            </div>
+            <div class="log-body" ref="logBody">
+              <div class="log-line" v-for="(line, i) in logs" :key="i" v-html="formatLog(line)"></div>
+            </div>
+          </div>
+        </el-tab-pane>
+      </el-tabs>
+    </main>
+
+    <!-- 底部状态栏 -->
+    <footer class="app-footer">
+      <span>{{ statusText }}</span>
+      <span>v1.0.0 | TqSdk Web Monitor</span>
+    </footer>
+  </div>
+
+  <!-- Vue 3 + Element Plus -->
+  <script src="https://unpkg.com/vue@3.4.31/dist/vue.global.prod.js"></script>
+  <script src="https://unpkg.com/element-plus@2.7.6/dist/index.full.min.js"></script>
+  <script src="https://unpkg.com/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
+  <!-- 应用逻辑 -->
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
